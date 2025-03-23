@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pip-remove"
+version = "0.1.0"
+description = "Removes both the specified package and its orphans from the current environment."
+authors = [
+    { name = "Axis", email = "blankRiot96@gmail.com" }
+]
+license = { text = "MIT" }
+dependencies = ["libcst==1.7.0"]
+requires-python = ">=3.10"
+
+[project.scripts]
+pip-remove = "pip_remove:main"
+
+[tool.setuptools]
+packages = ["pip_remove"]
+package-dir = {"" = "src"}
