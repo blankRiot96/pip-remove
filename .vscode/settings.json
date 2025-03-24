@@ -1,4 +1,0 @@
-{
-    "python.REPL.enableREPLSmartSend": false,
-    "basedpyright.analysis.typeCheckingMode": "basic"
-}

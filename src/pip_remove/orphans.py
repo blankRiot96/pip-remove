@@ -19,8 +19,7 @@ def get_environment_python_path() -> Path:
     elif windows_python is not None:
         return Path(windows_python)
 
-    print("No Python found in the environment!")
-    exit(1)
+    raise FileNotFoundError("No Python found in the environment!")
 
 
 def get_site_packages_dir() -> Path:

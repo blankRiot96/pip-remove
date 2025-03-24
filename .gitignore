@@ -1,6 +1,7 @@
 # Custom
 test.py
 _temp/
+.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
