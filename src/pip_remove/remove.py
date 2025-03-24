@@ -5,14 +5,14 @@ from rich.console import Console
 import subprocess
 
 
-def verify_and_remove(package_name: str, skip: bool):
+def verify_and_remove(package_name: str, skip: bool, scan: bool):
     python_path = get_environment_python_path()
 
     console = Console()
     console.print(f"environment python found: [green]{python_path}[/green]")
 
     used_orphans, unused_orphans = get_orphans(
-        package_name, get_environment_python_path(), Path(".")
+        package_name, get_environment_python_path(), Path("."), scan
     )
 
     if used_orphans:
