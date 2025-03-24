@@ -1,11 +1,11 @@
 import shutil
 import subprocess
 from pathlib import Path
-from typing import cast
-
-
-import libcst as cst
-from libcst._nodes.statement import ImportFrom
+from typing import Any, cast
+import ast
+import os
+import shlex
+import git
 
 
 def get_environment_python_path() -> Path:
@@ -97,74 +97,49 @@ def get_orphans_of_package(
     return [orphan for orphan in orphans if orphan]
 
 
-class Visitor(cst.CSTVisitor):
-    def __init__(self, user_defined_modules: set[str]) -> None:
-        super().__init__()
-        self.user_defined_modules = user_defined_modules
-        self.imports = set()
+def get_imported_modules_in_directory(directory: Path) -> list[str]:
+    imported_packages: list[str] = []
 
-    def recursive_value(self, node) -> str:
-        if isinstance(node, str):
+    class ImportVisitor(ast.NodeVisitor):
+        def visit_Import(self, node: ast.Import):
+            imported_packages.append(node.names[0].name)
             return node
-        return self.recursive_value(node.value)
 
-    def visit_Import(self, node: cst.CSTNode):
-        for alias in node.names:
-            package = self.recursive_value(alias.name.value)
-            if package not in self.user_defined_modules:
-                self.imports.add(package)
+    visitor = ImportVisitor()
 
-    def visit_ImportFrom(self, node: ImportFrom) -> bool | None:
-        if not hasattr(node.module, "value"):
-            return
-        package = self.recursive_value(node.module.value)
-        if package not in self.user_defined_modules:
-            self.imports.add(package)
-
-
-def is_ignored_folder(path, ignored_folders):
-    return any(folder in path.parts for folder in ignored_folders)
-
-
-def get_non_builtin_imports(directory: Path = Path()) -> list[str]:
-    ignored_folders = {"venv", "__pycache__"}
-    files = [
-        file
-        for file in directory.rglob("*.py")
-        if not is_ignored_folder(file, ignored_folders)
-    ]
-    user_defined_modules = {
-        str(file.parent.stem)
-        for file in files
-        if file.name in {"__main__.py", "__init__.py"}
-    }
-    user_defined_modules.update({file.stem for file in files})
-
-    imports = set()
-    for file in files:
-        try:
-            node = cst.parse_module(file.read_text())
-        except UnicodeDecodeError:
+    repo = git.Repo(directory)
+    source_files = repo.git.ls_files().splitlines()
+    print(source_files)
+    for file in source_files:
+        if not file.endswith(".py"):
             continue
-        visitor = Visitor(user_defined_modules)
-        node.visit(visitor)
-        imports.update(visitor.imports)
+        source = Path(directory / file).read_text()
+        tree = ast.parse(source)
+        visitor.visit(tree)
 
-    return sorted(imports)
+    return imported_packages
 
 
-# TODO
 def get_unused_orphans_of_package(
-    package_name: str, environment_python_path: Path
+    package_name: str, environment_python_path: Path, project_directory: Path
 ) -> list[str]:
     all_orphans = get_orphans_of_package(package_name, environment_python_path)
+    imported_modules = get_imported_modules_in_directory(project_directory)
+    print(imported_modules)
 
-    return [orphan for orphan in all_orphans]
+    for orphan in all_orphans[:]:
+        for imported_module in imported_modules:
+            if orphan == imported_module:
+                all_orphans.remove(orphan)
+
+    return all_orphans
 
 
 if __name__ == "__main__":
     print(
         get_unused_orphans_of_package(
-            "flask", Path("/home/axis/p/pip-remove/_temp/.venv/bin/python")
+            "flask",
+            Path("/home/axis/p/pip-remove/_temp/.venv/bin/python"),
+            project_directory=Path("/home/axis/p/pip-remove/_temp/"),
         )
     )
