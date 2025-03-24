@@ -36,7 +36,7 @@ def verify_and_remove(package_name: str, skip: bool):
             package_name, python_path, unused_orphans, skip
         )
     else:
-        print("\noperation cancelled by user.")
+        console.print("\noperation cancelled by user.", style="yellow")
 
 
 def uninstall_package(python_path: Path, package_name: str, skip: bool):
