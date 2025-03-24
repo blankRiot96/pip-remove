@@ -27,11 +27,11 @@ def verify_and_remove(package_name: str, skip: bool):
     if not skip:
         choice = console.input(
             f"remove [bold red]{package_name}[/bold red] and its [bold red]{len(unused_orphans)}[/bold red] unused orphans? (Y/n): "
-        )
+        ).strip().lower() or "y"
     else:
-        choice = "Y"
+        choice = "y"
 
-    if choice == "Y" or choice.strip() == "":
+    if choice == "y":
         remove_package_and_unused_orphans(
             package_name, python_path, unused_orphans, skip
         )
