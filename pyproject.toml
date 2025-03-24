@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pip-remove"
-version = "0.1.0"
+version = "0.1.1.dev"
 description = "Removes both the specified package and its orphans from the current environment."
 authors = [
     { name = "Axis", email = "blankRiot96@gmail.com" }
