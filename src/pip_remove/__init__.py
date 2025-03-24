@@ -23,6 +23,6 @@ def main():
     package_name: str = args.package_name
 
     if args.command == "getenv":
-        remove_package_and_unused_orphans(package_name)
-    elif package_name:
         print(get_environment_python_path().absolute())
+    elif package_name:
+        remove_package_and_unused_orphans(package_name)
