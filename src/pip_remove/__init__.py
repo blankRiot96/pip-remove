@@ -1,6 +1,5 @@
 import argparse
-from .remove import remove_package_and_unused_orphans
-from .orphans import get_environment_python_path
+from .remove import verify_and_remove
 
 
 def main():
@@ -10,19 +9,16 @@ def main():
     )
 
     _ = parser.add_argument(
-        "package_name", nargs="?", help="The name of the package to remove"
+        "package_name", nargs="?", help="the name of the package to remove"
     )
     _ = parser.add_argument(
-        "command",
-        nargs="?",
-        choices=["getenv"],
-        help="Show the Python interpreter path of the current environment",
+        "-y", action="store_true", help="skip questions and do the job"
     )
 
     args = parser.parse_args()
     package_name: str = args.package_name
 
-    if args.command == "getenv":
-        print(get_environment_python_path().absolute())
-    elif package_name:
-        remove_package_and_unused_orphans(package_name)
+    if package_name:
+        verify_and_remove(package_name, getattr(args, "y"))
+    else:
+        parser.print_help()

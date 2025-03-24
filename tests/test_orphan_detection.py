@@ -1,4 +1,4 @@
-from src.pip_remove.orphans import get_orphans_of_package, get_unused_orphans_of_package
+from src.pip_remove.orphans import get_orphans_of_package, get_orphans
 
 from .conftest import VENV_PYTHON_PATH, TEMP_DIR
 
@@ -15,11 +15,7 @@ def test_all_orphans():
 
 
 def test_unused_orphans():
-    assert set(
-        get_unused_orphans_of_package(
-            "flask", VENV_PYTHON_PATH, project_directory=TEMP_DIR
-        )
-    ) == {
+    assert get_orphans("flask", VENV_PYTHON_PATH, TEMP_DIR)[1] == {
         "blinker",
         "itsdangerous",
         "Jinja2",

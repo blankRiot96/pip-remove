@@ -1,11 +1,10 @@
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 import ast
-import os
-import shlex
 import git
+from git import exc
 
 
 def get_environment_python_path() -> Path:
@@ -83,7 +82,7 @@ def get_package_requires(package_name: str, environment_python_path: Path) -> li
 
 def get_orphans_of_package(
     package_name: str, environment_python_path: Path
-) -> list[str]:
+) -> set[str]:
     orphans = get_package_requires(package_name, environment_python_path)
     orphans = [
         orphan
@@ -94,25 +93,54 @@ def get_orphans_of_package(
     for orphan in orphans[:]:
         orphans.extend(get_package_requires(orphan, environment_python_path))
 
-    return [orphan for orphan in orphans if orphan]
+    return {orphan for orphan in orphans if orphan}
 
 
-def get_imported_modules_in_directory(directory: Path) -> list[str]:
-    imported_packages: list[str] = []
+def get_python_version(environment_python_path: Path) -> str:
+    source = "import sys;print(sys.version[:4])"
+    version = subprocess.check_output(
+        [environment_python_path, "-c", source], text=True
+    ).strip()
+
+    return version
+
+
+def get_imported_modules_in_directory(
+    directory: Path, environment_python_path: Path
+) -> dict[str, set[str]]:
+    try:
+        repo = git.Repo(directory)
+        source_files = repo.git.ls_files().splitlines()
+    except git.InvalidGitRepositoryError:
+        print(
+            "[WARNING]: No git repo found in current directory! Scanning all non-site-packages files"
+        )
+        source_files = [str(file) for file in directory.rglob("*.py")]
+    imported_packages: dict[str, set[str]] = {}
+
+    current_file_name = ""
 
     class ImportVisitor(ast.NodeVisitor):
         def visit_Import(self, node: ast.Import):
-            imported_packages.append(node.names[0].name)
+            nonlocal current_file_name
+            imported_packages[current_file_name].add(node.names[0].name)
             return node
 
     visitor = ImportVisitor()
 
-    repo = git.Repo(directory)
-    source_files = repo.git.ls_files().splitlines()
-    print(source_files)
+    version = get_python_version(environment_python_path)
+    site_packages_dir = (
+        environment_python_path.parent.parent / f"lib/python{version}/site-packages"
+    )
     for file in source_files:
         if not file.endswith(".py"):
             continue
+        p = Path(file)
+        if site_packages_dir.resolve() in p.resolve().parents:
+            continue
+
+        current_file_name = file
+        imported_packages[current_file_name] = set()
         source = Path(directory / file).read_text()
         tree = ast.parse(source)
         visitor.visit(tree)
@@ -120,24 +148,32 @@ def get_imported_modules_in_directory(directory: Path) -> list[str]:
     return imported_packages
 
 
-def get_unused_orphans_of_package(
+def get_orphans(
     package_name: str, environment_python_path: Path, project_directory: Path
-) -> list[str]:
+) -> tuple[dict[str, set[str]], set[str]]:
     all_orphans = get_orphans_of_package(package_name, environment_python_path)
-    imported_modules = get_imported_modules_in_directory(project_directory)
-    print(imported_modules)
+    imported_modules = get_imported_modules_in_directory(
+        project_directory, environment_python_path
+    )
 
-    for orphan in all_orphans[:]:
-        for imported_module in imported_modules:
-            if orphan == imported_module:
-                all_orphans.remove(orphan)
+    used_orphans: dict[str, set[str]] = {}
+    unused_orphans: set[str] = set(all_orphans)
 
-    return all_orphans
+    for file, imported_modules in imported_modules.items():
+        for orphan in set(all_orphans):
+            for imported_module in imported_modules:
+                if orphan == imported_module:
+                    if used_orphans.get(file) is None:
+                        used_orphans[file] = set()
+                    used_orphans[file].add(orphan)
+                    unused_orphans.remove(orphan)
+
+    return used_orphans, unused_orphans
 
 
 if __name__ == "__main__":
     print(
-        get_unused_orphans_of_package(
+        get_orphans(
             "flask",
             Path("/home/axis/p/pip-remove/_temp/.venv/bin/python"),
             project_directory=Path("/home/axis/p/pip-remove/_temp/"),
