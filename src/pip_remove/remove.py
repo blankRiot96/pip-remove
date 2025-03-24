@@ -5,14 +5,14 @@ from rich.console import Console
 import subprocess
 
 
-def verify_and_remove(package_name: str, skip: bool):
+def verify_and_remove(package_name: str, skip: bool, scan: bool):
     python_path = get_environment_python_path()
 
     console = Console()
     console.print(f"environment python found: [green]{python_path}[/green]")
 
     used_orphans, unused_orphans = get_orphans(
-        package_name, get_environment_python_path(), Path(".")
+        package_name, get_environment_python_path(), Path("."), scan
     )
 
     if used_orphans:
@@ -27,29 +27,27 @@ def verify_and_remove(package_name: str, skip: bool):
     if not skip:
         choice = console.input(
             f"remove [bold red]{package_name}[/bold red] and its [bold red]{len(unused_orphans)}[/bold red] unused orphans? (Y/n): "
-        )
+        ).strip().lower() or "y"
     else:
-        choice = "Y"
+        choice = "y"
 
-    if choice == "Y" or choice.strip() == "":
+    if choice == "y":
         remove_package_and_unused_orphans(
-            package_name, python_path, unused_orphans, skip
+            package_name, python_path, unused_orphans
         )
     else:
         console.print("\noperation cancelled by user.", style="yellow")
 
 
-def uninstall_package(python_path: Path, package_name: str, skip: bool):
-    command = [python_path, "-m", "pip", "uninstall", package_name]
-    if skip:
-        command.append("-y")
-
+def uninstall_packages(python_path: Path, package_names: list[str]):
+    command = [python_path, "-m", "pip", "uninstall", "-y"]
+    command.extend(package_names)
     _ = subprocess.run(command)
 
 
 def remove_package_and_unused_orphans(
-    package_name: str, python_path: Path, orphans: set[str], skip: bool
+    package_name: str, python_path: Path, orphans: set[str]
 ):
-    _ = uninstall_package(python_path, package_name, skip)
-    for orphan in orphans:
-        uninstall_package(python_path, orphan, skip)
+    packages = [package_name]
+    packages.extend(orphans)
+    uninstall_packages(python_path, packages)

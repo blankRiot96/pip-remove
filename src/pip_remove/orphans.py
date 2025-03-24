@@ -160,14 +160,14 @@ def is_python_in_venv(environment_python_path: Path) -> bool:
 
 
 def get_orphans(
-    package_name: str, environment_python_path: Path, project_directory: Path
+    package_name: str, environment_python_path: Path, project_directory: Path, scan: bool = True
 ) -> tuple[dict[str, set[str]], set[str]]:
     all_orphans = get_orphans_of_package(package_name, environment_python_path)
 
     used_orphans: dict[str, set[str]] = {}
     unused_orphans: set[str] = set(all_orphans)
 
-    if is_python_in_venv(environment_python_path):
+    if scan and is_python_in_venv(environment_python_path):
         imported_modules = get_imported_modules_in_directory(
             project_directory, environment_python_path
         )
